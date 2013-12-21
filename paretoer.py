@@ -16,6 +16,7 @@ class CSVParetoer():
     def __init__(self, input_path, output_path):
         self.input_file = open(input_path, "r")
         self.output_file = open(output_path, "w")
+        self.stop_words = open("stopwords.txt", "r").read().split()
         self.counts = {}
 
     def update_counts(self, str_to_count):
@@ -23,10 +24,11 @@ class CSVParetoer():
         word_list = zero_punctuation.split()
         for word in word_list:
             word = word.upper()
-            if word in self.counts:
-                self.counts[word] += 1
-            else:
-                self.counts[word] = 1
+            if word not in self.stop_words:
+                if word in self.counts:
+                    self.counts[word] += 1
+                else:
+                    self.counts[word] = 1
 
     def pareto(self, column_list):
         dialect = csv.Sniffer().sniff(self.input_file.read(1024))
@@ -56,6 +58,10 @@ if __name__ == '__main__':
     column_string = raw_input(
         'Which columns would you like to read from? Numbers separated by commas, please.\n')
     column_list = [int(x) - 1 for x in column_string.split(",")]
+    print "Opening files..."
     paretoer = CSVParetoer(input_path, output_path)
+    print "Counting..."
     paretoer.pareto(column_list)
+    print 'Writing output...'
     paretoer.write_counts()
+    print "Complete."

@@ -14,8 +14,8 @@ class CSVParetoer():
     """
 
     def __init__(self, input_path, output_path):
-        self.input_file = open(input_path, "r")
-        self.output_file = open(output_path, "w")
+        self.input_file = open(input_path, "rb")
+        self.output_file = open(output_path, "wb")
         self.stop_words = open("stopwords.txt", "r").read().split()
         self.counts = {}
 
@@ -24,7 +24,7 @@ class CSVParetoer():
         word_list = zero_punctuation.split()
         for word in word_list:
             word = word.upper()
-            if word not in self.stop_words:
+            if word not in self.stop_words and not word.isdigit():
                 if word in self.counts:
                     self.counts[word] += 1
                 else:
@@ -34,13 +34,6 @@ class CSVParetoer():
         dialect = csv.Sniffer().sniff(self.input_file.read(1024))
         self.input_file.seek(0)
         reader = csv.reader(self.input_file, dialect)
-        if csv.Sniffer().has_header(self.input_file.read(1024)):
-            print "Reading from these columns:"
-            for number in column_list:
-                print reader.next()[number]
-        else:
-            reader.next()
-
         for line in reader:
             for number in column_list:
                 self.update_counts(line[number])
@@ -58,6 +51,7 @@ if __name__ == '__main__':
     column_string = raw_input(
         'Which columns would you like to read from? Numbers separated by commas, please.\n')
     column_list = [int(x) - 1 for x in column_string.split(",")]
+    # TODO: Column names! Let us pick them, or at least say which we're using
     print "Opening files..."
     paretoer = CSVParetoer(input_path, output_path)
     print "Counting..."

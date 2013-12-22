@@ -17,11 +17,16 @@ class CSVParetoer():
         self.input_file = open(input_path, "rb")
         self.output_file = open(output_path, "wb")
         self.stop_words = open("stopwords.txt", "r").read().split()
-        self.start_row = int(start_row)
+        self.input_file = open(input_path, "rb")
+        self.output_file = open(output_path, "wb")
+        self.stop_words = open("stopwords.txt", "r").read().split()
+        self.start_row = start_row
         self.counts = {}
 
     def update_counts(self, str_to_count):
-        zero_punctuation = str_to_count.translate(None, string.punctuation)
+        replace_punctuation = string.maketrans(string.punctuation,
+                                               ' ' * len(string.punctuation))
+        zero_punctuation = str_to_count.translate(replace_punctuation)
         word_list = zero_punctuation.split()
         for word in word_list:
             word = word.upper()
@@ -51,18 +56,20 @@ class CSVParetoer():
 if __name__ == '__main__':
     input_path = sys.argv[1]
     output_path = sys.argv[2]
-    num_header_rows = raw_input(
-        "How many rows should we exclude as Header rows?\n")
+    num_header_rows = int(raw_input(
+        "How many rows should we exclude as Header rows?\n"))
     if num_header_rows >= 1:
         title_row = raw_input(
             "Which of these rows contains the column titles?\n")
     column_string = raw_input(
         'Which columns would you like to read from? Numbers separated by commas, please.\n')
-
     column_list = [int(x) - 1 for x in column_string.split(",")]
-    # TODO: Column names! Let us pick them, or at least say which we're using
     print "Opening files..."
-    paretoer = CSVParetoer(num_header_rows, input_path, output_path)
+    try:
+        paretoer = CSVParetoer(num_header_rows, input_path, output_path)
+    except Exception, e:
+        print "One of those files doesn't seem to exist."
+        sys.exit(1)
     print "Counting..."
     paretoer.pareto(column_list)
     print 'Writing output...'

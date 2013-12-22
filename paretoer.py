@@ -17,9 +17,6 @@ class CSVParetoer():
         self.input_file = open(input_path, "rb")
         self.output_file = open(output_path, "wb")
         self.stop_words = open("stopwords.txt", "r").read().split()
-        self.input_file = open(input_path, "rb")
-        self.output_file = open(output_path, "wb")
-        self.stop_words = open("stopwords.txt", "r").read().split()
         self.start_row = start_row
         self.counts = {}
 
@@ -58,7 +55,7 @@ if __name__ == '__main__':
     output_path = sys.argv[2]
     num_header_rows = int(raw_input(
         "How many rows should we exclude as Header rows?\n"))
-    if num_header_rows >= 1:
+    if num_header_rows > 1:
         title_row = raw_input(
             "Which of these rows contains the column titles?\n")
     column_string = raw_input(

@@ -20,6 +20,10 @@ class CSVParetoer():
         self.start_row = start_row
         self.counts = {}
 
+        dialect = csv.Sniffer().sniff(self.input_file.read(1024))
+        self.input_file.seek(0)
+        self.reader = csv.reader(self.input_file, dialect)
+
     def update_counts(self, str_to_count):
         replace_punctuation = string.maketrans(string.punctuation,
                                                ' ' * len(string.punctuation))
@@ -34,12 +38,9 @@ class CSVParetoer():
                     self.counts[word] = 1
 
     def pareto(self, column_list):
-        dialect = csv.Sniffer().sniff(self.input_file.read(1024))
-        self.input_file.seek(0)
-        reader = csv.reader(self.input_file, dialect)
         for i in xrange(0, self.start_row):
-            next(reader)
-        for line in reader:
+            next(self.reader)
+        for line in self.reader:
             for number in column_list:
                 self.update_counts(line[number])
 

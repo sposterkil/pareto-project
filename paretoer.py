@@ -13,6 +13,10 @@ class CSVParetoer():
     of tags to be applied to that file.
     """
 
+    # Build a translation table that turns all punctuation into spaces
+    replace_punctuation = string.maketrans(string.punctuation,
+                                           ' ' * len(string.punctuation))
+
     def __init__(self, start_row, input_path, output_path):
         self.input_file = open(input_path, "rb")
         self.output_file = open(output_path, "wb")
@@ -25,31 +29,43 @@ class CSVParetoer():
         self.reader = csv.reader(self.input_file, dialect)
 
     def update_counts(self, str_to_count):
-        replace_punctuation = string.maketrans(string.punctuation,
-                                               ' ' * len(string.punctuation))
-        zero_punctuation = str_to_count.translate(replace_punctuation)
+
+        # Replaces all punctuation with spaces...
+        zero_punctuation = str_to_count.translate(self.replace_punctuation)
+        # ...and then splits on spaces, so we have a punctuation-free
+        # list of words
         word_list = zero_punctuation.split()
         for word in word_list:
             word = word.upper()
             if word not in self.stop_words and not word.isdigit():
                 if word in self.counts:
+                    # Increment the count if it exists...
                     self.counts[word] += 1
                 else:
+                    # And set it to one otherwise. += vs =.
                     self.counts[word] = 1
 
     def pareto(self, column_list):
+        self.last_column_list = column_list
+        # Skip the header rows, if they exist
         for i in xrange(0, self.start_row):
             next(self.reader)
         for line in self.reader:
-            for number in column_list:
-                self.update_counts(line[number])
+            for column in column_list:
+                self.update_counts(line[column])
 
     def write_counts(self):
         count_tuples = self.counts.iteritems()
+        # Sort them in decreasing order of frequency
         sorted_tuples = sorted(count_tuples, key=lambda word: -word[1])
+        self.output_file.write("Words by Frequency in columns:\n")
+        self.output_file.write(str(self.last_column_list) + "\n")
+        self.output_file.write(
+            "Remove the # in front of tags you want to apply to the file.\n")
+        self.output_file.write("------------TAGS FOLLOW------------\n")
+
         for word, count in sorted_tuples:
-            self.output_file.write("%s: %s" % (word, count))
-            self.output_file.write("\n")
+            self.output_file.write("#%s: %s \n" % (word, count))
 
 
 class CSVTagger():
@@ -61,10 +77,41 @@ class CSVTagger():
     corresponding row contains that column's word.
     """
 
-    def __init__(self, tag_list, file_to_tag):
-        self.tag_list = tag_list
-        self.file_to_tag = file_to_tag
+    def __init__(self, column_list, taglist_path, file_path):
+        self.column_list = column_list
+        self.tag_file = open(taglist_path, "rb")
+        self.file_to_tag = open(file_path, "r+b")
 
+        dialect = csv.Sniffer().sniff(self.file_to_tag.read(1024))
+        self.file_to_tag.seek(0)
+        self.writer = csv.writer(self.file_to_tag, dialect)
+        self.reader = csv.reader(self.file_to_tag, dialect)
+
+    def get_end(self):
+        # Finds the length of the longest row in the file, so we know
+        # where it's safe to start writing tags
+        return max([len(line) for line in self.writer]) + 1
+
+    def build_tag_list(self):
+        tag_list = []
+        # Captures a word followed by a colon followed by anything
+        strip_colons = re.compile(r"(\w+):.*")
+        for line in self.tag_file:
+            # Adds the WORD on each line to the tag_list
+            tag_list.append(strip_colons.match(line).group(1))
+        return tag_list
+
+    def tag_row(tagline, tag, column_number):
+        pass
+
+    def add_tags(self):
+        start_col = get_end()
+        tag_list = build_tag_list()
+        for line in self.reader:
+            for column in self.column_list:
+                for tag in tag_list:
+                    if line[column].contains(tag):
+                        tag_row(line, tag, start_col + tag_list.index(tag))
 
 if __name__ == '__main__':
     input_path = sys.argv[1]

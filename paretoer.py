@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
-import sys
 import csv
+import re
+import shutil
 import string
+import sys
+from tempfile import NamedTemporaryFile
 
 
 class CSVParetoer():
@@ -23,13 +26,11 @@ class CSVParetoer():
         self.stop_words = open("stopwords.txt", "r").read().split()
         self.start_row = start_row
         self.counts = {}
-
         dialect = csv.Sniffer().sniff(self.input_file.read(1024))
         self.input_file.seek(0)
         self.reader = csv.reader(self.input_file, dialect)
 
     def update_counts(self, str_to_count):
-
         # Replaces all punctuation with spaces...
         zero_punctuation = str_to_count.translate(self.replace_punctuation)
         # ...and then splits on spaces, so we have a punctuation-free
@@ -68,6 +69,12 @@ class CSVParetoer():
             self.output_file.write("#%s: %s \n" % (word, count))
 
 
+def pad_insert(l, index, value):
+    l += [''] * (index - len(l))
+    l.append(value)
+    return l
+
+
 class CSVTagger():
 
     """
@@ -79,18 +86,17 @@ class CSVTagger():
 
     def __init__(self, column_list, taglist_path, file_path):
         self.column_list = column_list
+        self.file_to_tag = open(file_path, "rb")
         self.tag_file = open(taglist_path, "rb")
-        self.file_to_tag = open(file_path, "r+b")
 
         dialect = csv.Sniffer().sniff(self.file_to_tag.read(1024))
         self.file_to_tag.seek(0)
-        self.writer = csv.writer(self.file_to_tag, dialect)
         self.reader = csv.reader(self.file_to_tag, dialect)
 
     def get_end(self):
         # Finds the length of the longest row in the file, so we know
         # where it's safe to start writing tags
-        return max([len(line) for line in self.writer]) + 1
+        return max([len(line) for line in self.reader]) + 1
 
     def build_tag_list(self):
         tag_list = []
@@ -98,40 +104,63 @@ class CSVTagger():
         strip_colons = re.compile(r"(\w+):.*")
         for line in self.tag_file:
             # Adds the WORD on each line to the tag_list
-            tag_list.append(strip_colons.match(line).group(1))
+            match = strip_colons.match(line)
+            if match:
+                tag_list.append(match.group(1))
         return tag_list
 
-    def tag_row(tagline, tag, column_number):
-        pass
+    def tag_row(self, row, tags, start_col):
+        if len(tags) > 0:
+            for tag in tags:
+                tagged_row = pad_insert(row, start_col + tags.index(tag), tag)
+            self.writer.writerow(tagged_row)
+        else:
+            self.writer.writerow(row)
 
     def add_tags(self):
-        start_col = get_end()
-        tag_list = build_tag_list()
-        for line in self.reader:
-            for column in self.column_list:
-                for tag in tag_list:
-                    if line[column].contains(tag):
-                        tag_row(line, tag, start_col + tag_list.index(tag))
+        start_col = self.get_end()
+        tag_list = self.build_tag_list()
+        temp_file = NamedTemporaryFile(delete=False)
+        to_check = ""
+        self.writer = csv.writer(temp_file, dialect=self.reader.dialect,
+                                 quotechar='"', quoting=csv.QUOTE_ALL,
+                                 escapechar="\\")
+        self.file_to_tag.seek(0)
+        for row in self.reader:
+            to_check = " ".join([row[column] for column in self.column_list])
+            to_tag = []
+            for tag in tag_list:
+                if tag in to_check.upper():
+                    to_tag.append(tag)
+            self.tag_row(row, to_tag, start_col)
+
+        shutil.move(temp_file.name, self.file_to_tag.name)
 
 if __name__ == '__main__':
     input_path = sys.argv[1]
-    output_path = sys.argv[2]
+    taglist_path = sys.argv[2]
     num_header_rows = int(raw_input(
         "How many rows should we exclude as Header rows?\n"))
     if num_header_rows > 1:
         title_row = raw_input(
             "Which of these rows contains the column titles?\n")
     column_string = raw_input(
-        'Which columns would you like to read from? Numbers separated by commas, please.\n')
+        "Which columns would you like to read from? Numbers separated by commas, please.\n")
     column_list = [int(x) - 1 for x in column_string.split(",")]
     print "Opening files..."
     try:
-        paretoer = CSVParetoer(num_header_rows, input_path, output_path)
+        paretoer = CSVParetoer(num_header_rows, input_path, taglist_path)
     except Exception, e:
         print "One of those files doesn't seem to exist."
         sys.exit(1)
     print "Counting..."
     paretoer.pareto(column_list)
-    print 'Writing output...'
+    print "Writing output..."
     paretoer.write_counts()
-    print "Complete."
+    print "Done."
+    raw_input("""Please edit the file at %s to select the tags you wish
+to apply, and press enter when done.""" % taglist_path)
+    print "Tagging File..."
+    tagger = CSVTagger(column_list, taglist_path, input_path)
+    tagger.add_tags()
+    print "Done."

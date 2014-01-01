@@ -88,7 +88,7 @@ class CSVTagger():
         self.column_list = column_list
         self.file_to_tag = open(file_path, "rb")
         self.tag_file = open(taglist_path, "rb")
-
+        self.file_to_tag.seek(0)
         dialect = csv.Sniffer().sniff(self.file_to_tag.read(1024))
         self.file_to_tag.seek(0)
         self.reader = csv.reader(self.file_to_tag, dialect)
@@ -112,28 +112,38 @@ class CSVTagger():
     def tag_row(self, row, tags, start_col):
         if len(tags) > 0:
             for tag in tags:
-                tagged_row = pad_insert(row, start_col + tags.index(tag), tag)
+                col_num = start_col + self.tag_list.index(tag)
+                tagged_row = pad_insert(row, col_num, "X")
             self.writer.writerow(tagged_row)
         else:
             self.writer.writerow(row)
 
+    def write_headers(self):
+        self.file_to_tag.seek(0)`
+        headers = next(self.reader)
+        for x in xrange(self.start_col - len(headers)):
+            headers.append(x)
+        for tag in self.tag_list:
+            headers.append(tag)
+        self.writer.writerow(headers)
+
     def add_tags(self):
-        start_col = self.get_end()
-        tag_list = self.build_tag_list()
         temp_file = NamedTemporaryFile(delete=False)
         to_check = ""
+        self.start_col = self.get_end()
+        self.tag_list = self.build_tag_list()
         self.writer = csv.writer(temp_file, dialect=self.reader.dialect,
-                                 quotechar='"', quoting=csv.QUOTE_ALL,
                                  escapechar="\\")
         self.file_to_tag.seek(0)
         for row in self.reader:
             to_check = " ".join([row[column] for column in self.column_list])
             to_tag = []
-            for tag in tag_list:
+            for tag in self.tag_list:
                 if tag in to_check.upper():
                     to_tag.append(tag)
-            self.tag_row(row, to_tag, start_col)
-
+            self.tag_row(row, to_tag, self.start_col)
+        temp_file.seek(0)
+        self.write_headers()
         shutil.move(temp_file.name, self.file_to_tag.name)
 
 if __name__ == '__main__':

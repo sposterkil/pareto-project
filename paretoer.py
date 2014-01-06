@@ -20,15 +20,19 @@ class CSVParetoer():
     replace_punctuation = string.maketrans(string.punctuation,
                                            ' ' * len(string.punctuation))
 
-    def __init__(self, start_row, input_path, output_path):
-        self.input_file = open(input_path, "rb")
-        self.output_file = open(output_path, "wb")
-        self.stop_words = open("stopwords.txt", "r").read().split()
+    def __init__(self, start_row, file_to_count, tag_file):
+        self.file_to_count = file_to_count
+        self.tag_file = tag_file
         self.start_row = start_row
+        try:
+            self.stop_words = open("stopwords.txt", "r").read().split()
+        except IOError, e:
+            print "stopwords.txt not found.  Output will contain many common words."
+
         self.counts = {}
-        dialect = csv.Sniffer().sniff(self.input_file.read(1024))
-        self.input_file.seek(0)
-        self.reader = csv.reader(self.input_file, dialect)
+        dialect = csv.Sniffer().sniff(self.file_to_count.read(1024))
+        self.file_to_count.seek(0)
+        self.reader = csv.reader(self.file_to_count, dialect)
 
     def update_counts(self, str_to_count):
         # Replaces all punctuation with spaces...
@@ -59,14 +63,14 @@ class CSVParetoer():
         count_tuples = self.counts.iteritems()
         # Sort them in decreasing order of frequency
         sorted_tuples = sorted(count_tuples, key=lambda word: -word[1])
-        self.output_file.write("Words by Frequency in columns:\n")
-        self.output_file.write(str(self.last_column_list) + "\n")
-        self.output_file.write(
+        self.tag_file.write("Words by Frequency in columns:\n")
+        self.tag_file.write(str(self.last_column_list) + "\n")
+        self.tag_file.write(
             "Remove the # in front of tags you want to apply to the file.\n")
-        self.output_file.write("------------TAGS FOLLOW------------\n")
+        self.tag_file.write("------------TAGS FOLLOW------------\n")
 
         for word, count in sorted_tuples:
-            self.output_file.write("#%s: %s \n" % (word, count))
+            self.tag_file.write("#%s: %s \n" % (word, count))
 
 
 def pad_insert(l, index, value):
@@ -84,10 +88,10 @@ class CSVTagger():
     corresponding row contains that column's word.
     """
 
-    def __init__(self, column_list, taglist_path, file_path):
+    def __init__(self, column_list, tag_file, file_to_tag):
         self.column_list = column_list
-        self.file_to_tag = open(file_path, "rb")
-        self.tag_file = open(taglist_path, "rb")
+        self.file_to_tag = file_to_tag
+        self.tag_file = tag_file
         self.file_to_tag.seek(0)
         dialect = csv.Sniffer().sniff(self.file_to_tag.read(1024))
         self.file_to_tag.seek(0)
@@ -119,7 +123,7 @@ class CSVTagger():
             self.writer.writerow(row)
 
     def write_headers(self):
-        self.file_to_tag.seek(0)`
+        self.file_to_tag.seek(0)
         headers = next(self.reader)
         for x in xrange(self.start_col - len(headers)):
             headers.append(x)
@@ -159,10 +163,16 @@ if __name__ == '__main__':
     column_list = [int(x) - 1 for x in column_string.split(",")]
     print "Opening files..."
     try:
-        paretoer = CSVParetoer(num_header_rows, input_path, taglist_path)
-    except Exception, e:
-        print "One of those files doesn't seem to exist."
+        file_to_count = open(input_path)
+    except IOError, e:
+        print "Error opening %s." % input_path
         sys.exit(1)
+    try:
+        file_to_count = open(taglist_path)
+    except IOError, e:
+        print "Error opening %s." % taglist_path
+        sys.exit(1)
+    paretoer = CSVParetoer(num_header_rows, file_to_count, tag_list)
     print "Counting..."
     paretoer.pareto(column_list)
     print "Writing output..."

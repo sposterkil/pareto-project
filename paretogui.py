@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
+
 import csv
 import os
-import shutil
 import Tkconstants
 import tkFileDialog
 import Tkinter as Tk
-import webbrowser
 from paretoer import CSVParetoer, CSVTagger
+from shutil import copyfile
+from webbrowser import open as wopen
 
 
 def get_parent_dir(findfile):
@@ -26,6 +27,7 @@ class TkinterGUI(Tk.Frame):
         self.open_button = Tk.Button(self,
                                      text='Choose a CSV file to tag',
                                           command=self.choose_file)
+        tagme_lable = Tk.Label(self, text="Select Columns to Count")
         self.header_chooser = Tk.Listbox(self, selectmode=Tk.MULTIPLE)
         self.count_button = Tk.Button(self,
                                       text="Pareto!",
@@ -36,6 +38,7 @@ class TkinterGUI(Tk.Frame):
 
         # pack items
         self.open_button.pack(**button_opt)
+        tagme_lable.pack()
         self.header_chooser.pack()
         self.count_button.pack(**button_opt)
         self.tag_button.pack(**button_opt)
@@ -69,32 +72,34 @@ class TkinterGUI(Tk.Frame):
         except Exception, e:
             pass
         self.file_to_tag = tkFileDialog.askopenfile(mode='r', **self.file_opt)
+        self.tag_path = os.path.join(get_parent_dir(self.file_to_tag),
+                                     "tagfile.txt")
         headers = next(csv.reader(self.file_to_tag))
         self.file_to_tag.seek(0)
         self.update_header_chooser(headers)
-        shutil.copyfile(self.file_to_tag.name, self.file_to_tag.name + ".BAK")
+        copyfile(self.file_to_tag.name, self.file_to_tag.name + ".BAK")
         self.count_button.config(state=Tk.NORMAL)
 
     def start_pareto(self):
-        self.tag_out = open(os.path.join(get_parent_dir(self.file_to_tag),
-                                         "tagfile.txt"), "w")
-        self.counter = CSVParetoer(1, self.file_to_tag, self.tag_out)
-        self.column_list = map(int, self.header_chooser.curselection())
-        self.counter.pareto(self.column_list)
-        self.counter.write_counts()
+        with open(self.tag_path, "w") as tag_out:
+            self.counter = CSVParetoer(1, self.file_to_tag, tag_out)
+            self.column_list = map(int, self.header_chooser.curselection())
+            self.counter.pareto(self.column_list)
+            self.counter.write_counts()
+
         self.count_button.config(state=Tk.DISABLED)
         self.tag_button.config(state=Tk.NORMAL)
         self.edit_msg = Tk.Message(self,
                                    text="Please edit tagfile.txt in the same directory as the chosen csv file to select your tags.")
         self.edit_msg.pack()
-        webbrowser.open(self.tag_out.name)
+        wopen(self.tag_path)
 
     def tag_file(self):
         self.edit_msg.pack_forget()
-        tag_in = open(self.tag_out.name)
-        self.tag_out.close()
-        tagger = CSVTagger(self.column_list, tag_in, self.file_to_tag)
-        tagger.add_tags()
+        with open(self.tag_path, "r") as tag_in:
+            tagger = CSVTagger(self.column_list, tag_in, self.file_to_tag)
+            tagger.add_tags()
+        self.header_chooser.delete(0, Tk.END)
         self.tag_button.config(state=Tk.DISABLED)
 
 

@@ -8,6 +8,10 @@ import Tkinter as Tk
 from paretoer import CSVParetoer, CSVTagger
 
 
+def get_parent_dir(findfile):
+    return os.path.dirname(os.path.realpath(findfile.name))
+
+
 class TkinterGUI(Tk.Frame):
 
     def __init__(self, root):
@@ -21,10 +25,22 @@ class TkinterGUI(Tk.Frame):
                                      text='Choose a CSV file to tag',
                                           command=self.choose_file)
         self.header_chooser = Tk.Listbox(self, selectmode=Tk.MULTIPLE)
+        self.count_button = Tk.Button(self,
+                                      text="Pareto!",
+                                      command=self.start_pareto)
+        self.tag_button = Tk.Button(self,
+                                    text="Tag File",
+                                    command=self.tag_file)
 
         # pack items
         self.open_button.pack(**button_opt)
         self.header_chooser.pack()
+        self.count_button.pack(**button_opt)
+        self.tag_button.pack(**button_opt)
+
+        # Disable buttons until they're needed
+        self.count_button.config(state=Tk.DISABLED)
+        self.tag_button.config(state=Tk.DISABLED)
 
         # Default File Dialog options
         self.file_opt = options = {}
@@ -40,8 +56,8 @@ class TkinterGUI(Tk.Frame):
         options['parent'] = root
         options['title'] = 'Choose A Directory'
 
-    def get_parent_directory(self, findfile):
-        return os.path.dirname(os.path.realpath(findfile.name))
+    def tag_file(self):
+        pass
 
     def update_header_chooser(self, items_to_add):
         for item in items_to_add:
@@ -49,14 +65,23 @@ class TkinterGUI(Tk.Frame):
 
     def choose_file(self):
         """Returns an opened file in read mode."""
-        file_to_tag = tkFileDialog.askopenfile(mode='r', **self.file_opt)
-        tag_file = open(self.get_parent_directory(file_to_tag)
-                        + "tagtile.txt", "w")
-        headers = next(csv.reader(file_to_tag))
-        file_to_tag.seek(0)
-        self.counter = CSVParetoer(1, file_to_tag, tag_file)
+        self.file_to_tag = tkFileDialog.askopenfile(mode='r', **self.file_opt)
+        headers = next(csv.reader(self.file_to_tag))
+        self.file_to_tag.seek(0)
         self.update_header_chooser(headers)
         self.open_button.config(state=Tk.DISABLED)
+        self.count_button.config(state=Tk.NORMAL)
+
+    def start_pareto(self):
+        self.tag_file = open(os.path.join(get_parent_dir(self.file_to_tag),
+                                          "tagfile.txt"), "w")
+        self.counter = CSVParetoer(1, self.file_to_tag, self.tag_file)
+        column_list = map(int, self.header_chooser.curselection())
+        self.counter.pareto(column_list)
+        self.counter.write_counts()
+        self.count_button.config(state=Tk.DISABLED)
+        self.tag_button.config(state=Tk.NORMAL)
+        print "Please edit tagfile.txt in the same directory as the chosen csv file to select your tags."
 
     def asksaveasfile(self):
         """Returns an opened file in write mode."""

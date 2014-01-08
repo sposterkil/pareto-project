@@ -63,11 +63,11 @@ class CSVParetoer():
         count_tuples = self.counts.iteritems()
         # Sort them in decreasing order of frequency
         sorted_tuples = sorted(count_tuples, key=lambda word: -word[1])
-        self.tag_file.write("Words by Frequency in columns:\n")
+        self.tag_file.write("# Words by Frequency in columns:\n")
         self.tag_file.write(str(self.last_column_list) + "\n")
         self.tag_file.write(
-            "Remove the tags you don't want to apply to the file.\n")
-        self.tag_file.write("------------TAGS FOLLOW------------\n")
+            "# Remove the tags you don't want to apply to the file.\n")
+        self.tag_file.write("############ TAGS FOLLOW ############\n")
 
         for word, count in sorted_tuples:
             self.tag_file.write("%s: %s \n" % (word, count))

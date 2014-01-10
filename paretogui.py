@@ -15,20 +15,46 @@ def get_parent_dir(findfile):
     return os.path.dirname(os.path.realpath(findfile.name))
 
 
+class AutoScrollbar(Tk.Scrollbar):
+    # a scrollbar that hides itself if it's not needed.  only
+    # works if you use the grid geometry manager.
+
+    def set(self, lo, hi):
+        if float(lo) <= 0.0 and float(hi) >= 1.0:
+            # grid_remove is currently missing from Tkinter!
+            self.tk.call("grid", "remove", self)
+        else:
+            self.grid()
+        Tk.Scrollbar.set(self, lo, hi)
+
+    def pack(self, **kw):
+        raise TclError, "cannot use pack with this widget"
+
+    def place(self, **kw):
+        raise TclError, "cannot use place with this widget"
+
+
 class TkinterGUI(Tk.Frame):
 
     def __init__(self, root):
         Tk.Frame.__init__(self, root)
+        self.grid(sticky=Tk.N + Tk.W + Tk.E + Tk.S)
+        self._create_widgets()
 
-        # Default Button options
-        button_opt = {'fill': Tkconstants.BOTH, 'padx': 5, 'pady': 5}
-
+    def _create_widgets(self):
         # define items
+        headerframe = Tk.Frame(self)
+        tagme_lable = Tk.Label(headerframe, text="Select Columns to Count")
+        scrollbar = AutoScrollbar(headerframe)
+        self.header_chooser = Tk.Listbox(headerframe, selectmode=Tk.MULTIPLE,
+                                         yscrollcommand=scrollbar.set)
+        scrollbar.config(command=self.header_chooser.yview)
+        headerframe.rowconfigure(0, weight=1)
+        headerframe.columnconfigure(0, weight=1)
+
         self.open_button = Tk.Button(self,
                                      text='Choose a CSV file to tag',
-                                          command=self.choose_file)
-        tagme_lable = Tk.Label(self, text="Select Columns to Count")
-        self.header_chooser = Tk.Listbox(self, selectmode=Tk.MULTIPLE)
+                                     command=self.choose_file)
         self.count_button = Tk.Button(self,
                                       text="Pareto!",
                                       command=self.start_pareto)
@@ -36,12 +62,22 @@ class TkinterGUI(Tk.Frame):
                                     text="Tag File",
                                     command=self.tag_file)
 
-        # pack items
-        self.open_button.pack(**button_opt)
-        tagme_lable.pack()
-        self.header_chooser.pack()
-        self.count_button.pack(**button_opt)
-        self.tag_button.pack(**button_opt)
+        # add items
+        tagme_lable.grid(row=0, sticky=Tk.S)
+        self.header_chooser.grid(row=1, column=0,
+                                 sticky=Tk.N + Tk.S + Tk.W + Tk.E)
+        scrollbar.grid(row=1, column=1,
+                       sticky=Tk.N + Tk.S)
+
+        self.open_button.pack()
+        headerframe.pack(fill="both", expand=True)
+        self.count_button.pack()
+        self.tag_button.pack()
+
+        for x in xrange(3):
+            self.columnconfigure(x, weight=1)
+        self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
 
         # Disable buttons until they're needed
         self.count_button.config(state=Tk.DISABLED)
@@ -56,11 +92,6 @@ class TkinterGUI(Tk.Frame):
         options['parent'] = root
         options['title'] = 'Choose File'
 
-        # Default Directory Dialog options
-        options['initialdir'] = 'C:\\'
-        options['parent'] = root
-        options['title'] = 'Choose A Directory'
-
     def update_header_chooser(self, items_to_add):
         self.header_chooser.delete(0, Tk.END)
         for item in items_to_add:
@@ -68,6 +99,7 @@ class TkinterGUI(Tk.Frame):
 
     def choose_file(self):
         try:
+            self.done_msg.pack_forget()
             self.edit_msg.pack_forget()
         except Exception, e:
             pass
@@ -101,10 +133,16 @@ class TkinterGUI(Tk.Frame):
             tagger.add_tags()
         self.header_chooser.delete(0, Tk.END)
         self.tag_button.config(state=Tk.DISABLED)
+        self.done_msg = Tk.Label(self, text="Done.")
+        self.done_msg.pack()
 
 
 if __name__ == '__main__':
     root = Tk.Tk()
     root.wm_title("Paretoizer")
-    TkinterGUI(root).pack()
+    root.minsize(300, 320)
+    root.columnconfigure(0, weight=1)
+    for x in xrange(4):
+        root.rowconfigure(x, weight=1)
+    TkinterGUI(root).grid(padx=10, pady=10, sticky=Tk.N + Tk.S + Tk.W + Tk.E)
     root.mainloop()

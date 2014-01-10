@@ -39,18 +39,17 @@ class TkinterGUI(Tk.Frame):
     def __init__(self, root):
         Tk.Frame.__init__(self, root)
         self.grid(sticky=Tk.N + Tk.W + Tk.E + Tk.S)
-        self._create_widgets()
+        self.create_widgets()
 
-    def _create_widgets(self):
+    def create_widgets(self):
         # define items
-        headerframe = Tk.Frame(self)
-        tagme_lable = Tk.Label(headerframe, text="Select Columns to Count")
+        headerframe = Tk.LabelFrame(self, text="Select Columns to Count")
         scrollbar = AutoScrollbar(headerframe)
-        self.header_chooser = Tk.Listbox(headerframe, selectmode=Tk.MULTIPLE,
-                                         yscrollcommand=scrollbar.set)
-        scrollbar.config(command=self.header_chooser.yview)
-        headerframe.rowconfigure(0, weight=1)
-        headerframe.columnconfigure(0, weight=1)
+        self.header_list = Tk.Listbox(headerframe, selectmode=Tk.MULTIPLE,
+                                         yscrollcommand=scrollbar.set, bd=0)
+        scrollbar.config(command=self.header_list.yview)
+        headerframe.grid_rowconfigure(1, weight=1)
+        headerframe.grid_columnconfigure(0, weight=1)
 
         self.open_button = Tk.Button(self,
                                      text='Choose a CSV file to tag',
@@ -63,8 +62,7 @@ class TkinterGUI(Tk.Frame):
                                     command=self.tag_file)
 
         # add items
-        tagme_lable.grid(row=0, sticky=Tk.S)
-        self.header_chooser.grid(row=1, column=0,
+        self.header_list.grid(row=1, column=0,
                                  sticky=Tk.N + Tk.S + Tk.W + Tk.E)
         scrollbar.grid(row=1, column=1,
                        sticky=Tk.N + Tk.S)
@@ -92,10 +90,10 @@ class TkinterGUI(Tk.Frame):
         options['parent'] = root
         options['title'] = 'Choose File'
 
-    def update_header_chooser(self, items_to_add):
-        self.header_chooser.delete(0, Tk.END)
+    def update_header_list(self, items_to_add):
+        self.header_list.delete(0, Tk.END)
         for item in items_to_add:
-            self.header_chooser.insert(Tk.END, item)
+            self.header_list.insert(Tk.END, item)
 
     def choose_file(self):
         try:
@@ -106,22 +104,23 @@ class TkinterGUI(Tk.Frame):
         self.file_to_tag = tkFileDialog.askopenfile(mode='r', **self.file_opt)
         self.tag_path = os.path.join(get_parent_dir(self.file_to_tag),
                                      "tagfile.txt")
-        headers = next(csv.reader(self.file_to_tag))
         self.file_to_tag.seek(0)
-        self.update_header_chooser(headers)
+        headers = next(csv.reader(self.file_to_tag))
+        self.update_header_list(headers)
         copyfile(self.file_to_tag.name, self.file_to_tag.name + ".BAK")
         self.count_button.config(state=Tk.NORMAL)
 
     def start_pareto(self):
         with open(self.tag_path, "w") as tag_out:
+            self.file_to_tag.seek(0)
             self.counter = CSVParetoer(1, self.file_to_tag, tag_out)
-            self.column_list = map(int, self.header_chooser.curselection())
+            self.column_list = [int x for x in self.header_list.curselection())]
             self.counter.pareto(self.column_list)
             self.counter.write_counts()
 
-        self.count_button.config(state=Tk.DISABLED)
-        self.tag_button.config(state=Tk.NORMAL)
-        self.edit_msg = Tk.Message(self,
+        self.count_button.config(state = Tk.DISABLED)
+        self.tag_button.config(state = Tk.NORMAL)
+        self.edit_msg=Tk.Message(self,
                                    text="Please edit tagfile.txt in the same directory as the chosen csv file to select your tags.")
         self.edit_msg.pack()
         wopen(self.tag_path)
@@ -131,7 +130,7 @@ class TkinterGUI(Tk.Frame):
         with open(self.tag_path, "r") as tag_in:
             tagger = CSVTagger(self.column_list, tag_in, self.file_to_tag)
             tagger.add_tags()
-        self.header_chooser.delete(0, Tk.END)
+        self.header_list.delete(0, Tk.END)
         self.tag_button.config(state=Tk.DISABLED)
         self.done_msg = Tk.Label(self, text="Done.")
         self.done_msg.pack()
@@ -140,9 +139,8 @@ class TkinterGUI(Tk.Frame):
 if __name__ == '__main__':
     root = Tk.Tk()
     root.wm_title("Paretoizer")
-    root.minsize(300, 320)
+    root.minsize(300, 400)
     root.columnconfigure(0, weight=1)
-    for x in xrange(4):
-        root.rowconfigure(x, weight=1)
+    root.rowconfigure(0, weight=1)
     TkinterGUI(root).grid(padx=10, pady=10, sticky=Tk.N + Tk.S + Tk.W + Tk.E)
     root.mainloop()

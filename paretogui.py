@@ -3,12 +3,11 @@
 
 import csv
 import os
-import Tkconstants
 import tkFileDialog
 import Tkinter as Tk
+import webbrowser
 from paretoer import CSVParetoer, CSVTagger
 from shutil import copyfile
-from webbrowser import open as wopen
 
 
 def get_parent_dir(findfile):
@@ -28,10 +27,10 @@ class AutoScrollbar(Tk.Scrollbar):
         Tk.Scrollbar.set(self, lo, hi)
 
     def pack(self, **kw):
-        raise TclError, "cannot use pack with this widget"
+        pass
 
     def place(self, **kw):
-        raise TclError, "cannot use place with this widget"
+        pass
 
 
 class TkinterGUI(Tk.Frame):
@@ -46,7 +45,7 @@ class TkinterGUI(Tk.Frame):
         headerframe = Tk.LabelFrame(self, text="Select Columns to Count")
         scrollbar = AutoScrollbar(headerframe)
         self.header_list = Tk.Listbox(headerframe, selectmode=Tk.MULTIPLE,
-                                         yscrollcommand=scrollbar.set, bd=0)
+                                      yscrollcommand=scrollbar.set, bd=0)
         scrollbar.config(command=self.header_list.yview)
         headerframe.grid_rowconfigure(1, weight=1)
         headerframe.grid_columnconfigure(0, weight=1)
@@ -63,7 +62,7 @@ class TkinterGUI(Tk.Frame):
 
         # add items
         self.header_list.grid(row=1, column=0,
-                                 sticky=Tk.N + Tk.S + Tk.W + Tk.E)
+                              sticky=Tk.N + Tk.S + Tk.W + Tk.E)
         scrollbar.grid(row=1, column=1,
                        sticky=Tk.N + Tk.S)
 
@@ -114,22 +113,25 @@ class TkinterGUI(Tk.Frame):
         with open(self.tag_path, "w") as tag_out:
             self.file_to_tag.seek(0)
             self.counter = CSVParetoer(1, self.file_to_tag, tag_out)
-            self.column_list = [int x for x in self.header_list.curselection())]
+            self.column_list = [int(x)
+                                for x in self.header_list.curselection()]
             self.counter.pareto(self.column_list)
             self.counter.write_counts()
 
-        self.count_button.config(state = Tk.DISABLED)
-        self.tag_button.config(state = Tk.NORMAL)
-        self.edit_msg=Tk.Message(self,
-                                   text="Please edit tagfile.txt in the same directory as the chosen csv file to select your tags.")
+        self.count_button.config(state=Tk.DISABLED)
+        self.tag_button.config(state=Tk.NORMAL)
+        self.edit_msg = Tk.Message(self, text="Please edit tagfile.txt in\
+ the same directory as the chosen csv file to select your tags.")
         self.edit_msg.pack()
-        wopen(self.tag_path)
+        webbrowser.open(self.tag_path)
 
     def tag_file(self):
         self.edit_msg.pack_forget()
+
         with open(self.tag_path, "r") as tag_in:
             tagger = CSVTagger(self.column_list, tag_in, self.file_to_tag)
             tagger.add_tags()
+
         self.header_list.delete(0, Tk.END)
         self.tag_button.config(state=Tk.DISABLED)
         self.done_msg = Tk.Label(self, text="Done.")

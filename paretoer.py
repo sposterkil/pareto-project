@@ -27,7 +27,8 @@ class CSVParetoer():
         try:
             self.stop_words = open("stopwords.txt", "r").read().split()
         except IOError, e:
-            print "stopwords.txt not found.  Output will contain many common words."
+            print "stopwords.txt not found.  Output will contain common words."
+            self.stop_words = []
 
         self.counts = {}
         dialect = csv.Sniffer().sniff(self.file_to_count.read(1024))
@@ -159,8 +160,8 @@ if __name__ == '__main__':
     if num_header_rows > 1:
         title_row = raw_input(
             "Which of these rows contains the column titles?\n")
-    column_string = raw_input(
-        "Which columns would you like to read from? Numbers separated by commas, please.\n")
+    column_string = raw_input("Which columns would you like to read from?\
+Numbers separated by commas, please.\n")
     column_list = [int(x) - 1 for x in column_string.split(",")]
     print "Opening files..."
     try:
@@ -169,7 +170,7 @@ if __name__ == '__main__':
         print "Error opening %s." % input_path
         sys.exit(1)
     try:
-        file_to_count = open(taglist_path)
+        tag_list = open(taglist_path)
     except IOError, e:
         print "Error opening %s." % taglist_path
         sys.exit(1)

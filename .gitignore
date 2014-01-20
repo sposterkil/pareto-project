@@ -36,3 +36,6 @@ nosetests.xml
 .pydevproject
 Data/
 *out.txt
+PyInstaller-2.1
+paretoer.spec
+paretogui.spec
